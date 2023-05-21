@@ -1,0 +1,213 @@
+{#
+| Variable                                          | Type                | Description                                                    |
+|---------------------------------------------------|---------------------|----------------------------------------------------------------|
+| page                                              | object              |                                                                |
+| page.title                                        | string              |                                                                |
+| page.slug                                         | string              |                                                                |
+| cart                                              | Cart                |                                                                |
+| cart.id                                           | string              | Unique string for current cart                                 |
+| cart.is_require_shipping                          | bool                | Does one of cart items require shipping?                       |
+| cart.has_shipping                                 | bool                | Does shipping company selected?                                |
+| cart.real_shipping_cost                           | float               | Shipping cost can become free by an offer, coupon              |
+| cart.real_discount                                | float               | real discount considering tax (this for show only)             |
+| cart.sub_total                                    | float               | The sum of items price without shipping or other costs         |
+| cart.discount                                     | float               | final discount                                                 |
+| cart.coupon                                       | ?string             |                                                                |
+| cart.total                                        | float               |                                                                |
+| cart.free_shipping_bar                            | ?object             |                                                                |
+| cart.free_shipping_bar.minimum_amount             | float               | how much cart total should be to apply free shipping ex: 1000  |
+| cart.free_shipping_bar.has_free_shipping          | bool                | true when `cart.free_shipping_bar.percent==100`                |
+| cart.free_shipping_bar.percent                    | float               | `0 - 100`                                                      |
+| cart.free_shipping_bar.remaining                  | float               | `830`                                                          |
+| cart.items                                        | CartItem[]          |                                                                |
+| cart.items[].id                                   | int                 |                                                                |
+| cart.items[].is_hidden_quantity                   | bool                |                                                                |
+| cart.items[].url                                  | string              | Product url                                                    |
+| cart.items[].quantity                             | int                 |                                                                |
+| cart.items[].type                                 | string              | product type                                                   |
+| cart.items[].product_price                        | MoneyTaxable        |                                                                |
+| cart.items[].price                                | Money\|MoneyTaxable |                                                                |
+| cart.items[].total                                | Money               |                                                                |
+| cart.items[].product_id                           | int                 |                                                                |
+| cart.items[].notes                                | string              |                                                                |
+| cart.items[].can_add_note                         | bool                |                                                                |
+| cart.items[].can_upload_file                      | bool                |                                                                |
+| cart.items[].is_available                         | bool                |                                                                |
+| cart.items[].offer                                | ?object             |                                                                |
+| cart.items[].offer.discount                       | float               |                                                                |
+| cart.items[].offer.is_free                        | bool                |                                                                |
+| cart.items[].offer.names                          | ?string             | ex: `Buy 3 and the 4th on us, National Day`                    |
+| cart.items[].donation                             | ?object             |                                                                |
+| cart.items[].attachments                          | ?array              |                                                                |
+| cart.items[].attachments[].id                     | int                 | image id, to be attache with the formData                      |
+| cart.items[].attachments[].url                    | string              | image url                                                      |
+| cart.items[].attachments[].product_id             | int                 |                                                                |
+| cart.items[].attachments[].item_id                | int                 |                                                                |
+| cart.items[].attachments[].name                   | int                 | image file name                                                |
+#}
+{% extends "layouts.master" %}
+{% block content %}
+	<div
+		class="container mt-3" id="cartFirstProgress">
+		{# add breadcumbs container in pages to make a space in case breadcrumbs is off #}
+		<div id="progressDiv" class="mb-5">
+			<div class="progress-container">
+				<div class="progress" id="progress"></div>
+				<div class="circle active">1</div>
+				<div class="circle" id="secondCircle">2</div>
+				<div class="circle" id="thirdCircle">3</div>
+			</div>
+			<div class="row progressText">
+				<a href="{{url("/cart")}}" style="text-decoration:none; color:black">
+					<span class="active">السله</span>
+				</a>
+				<a href="{{url("/payment")}}" style="text-decoration:none; color:black">
+					<span id="secondSpan">الدفع</span>
+				</a>
+				<a href="{{url("/shipping")}}" style="text-decoration:none; color:black">
+					<span id="thirdSpan">التوصيل</span>
+				</a>
+			</div>
+		</div>
+		<h1 class="sr-only">{{ trans('blocks.header.cart') }}</h1>
+		<div class="">
+			<div class="main-content flex-1 w-full">
+				{% hook 'cart:items.start' %}
+				<table class="table buyingList" style="">
+					<thead>
+						<tr class="cart-item bg-white p-5 xs:p-7 rounded-md mb-5">
+							<th scope="col" class="">الصنف</th>
+							<th scope="col" class="col-3"></th>
+							<th scope="col">الكمية</th>
+							<th scope="col">سعر الوحده</th>
+							<th scope="col">المجموع</th>
+							<th scope="col"></th>
+						</tr>
+					</thead>
+					{% for item in cart.items %}
+						<tr>
+							<th scope="row">
+								<div class="productImage">
+									<a href="{{ item.url }}" class="shrink-0">
+										<img src="{{ 'images/s-empty.png' | asset }}" data-src="{{ item.product_image }}" alt="{{ item.product_name }}" class="lazy flex-none w-24 h-20 border border-gray-200 bg-gray-100 rounded-md object-center object-cover">
+									</a>
+								</div>
+							</th>
+							<td>
+								<a href="{{ item.url }}" class="text-base">{{ item.product_name }}</a>
+							</td>
+							<td>
+								<form onchange="salla.form.onChange('cart.updateItem', event)" id="item-{{ item.id }}">
+									<input type="hidden" name="id" value="{{ item.id }}">
+
+									{% if item.type == 'donating' %}
+										<span></span>
+									{% elseif item.is_hidden_quantity %}
+										<input type="hidden" value="{{ item.quantity }}" name="quantity"/>
+										<span class="w-10 text-center">{{ item.quantity }}</span>
+									{% else %}
+										<salla-quantity-input cart-item-id="{{ item.id }}" max="{{ product.max_quantity }}" class="transtion transition-color duration-300" value="{{ item.quantity }}" name="quantity"></salla-quantity-input>
+									{% endif %}
+								</form>
+							</td>
+							<td class="priceList">{{ item.product_price|money }}</td>
+							<td class="priceList">{{ item.quantity }}</td>
+							<td>
+								<salla-button type="button" shape="icon" size="small" color="danger" class="btn--delete" onclick="salla.cart.deleteItem({{ item.id }}).then(() => document.querySelector('#item-{{ item.id }}').remove())">
+									<i class="sicon-cancel"></i>
+								</salla-button>
+							</td>
+							{# {% else %}
+																																																																																				<div class="no-content-placeholder">
+																																																																																					<i class="sicon-shopping-bag icon"></i>
+																																																																																					<p>{{ trans('pages.cart.empty_cart') }}</p>
+																																																																																					<a href="{{ link('/') }}" class="btn btn--outline-primary btn--rounded-full">{{ trans('common.elements.back_home') }}</a>
+																																																																																				</div> #}
+						</tr>
+					{% endfor %}
+				</table>
+				{% for item in cart.items %}
+					<div class="responsiveCard">
+						<div class="row">
+							<div class="ProdImage col">
+								<a href="{{ item.url }}" class="shrink-0">
+									<img src="{{ 'images/s-empty.png' | asset }}" data-src="{{ item.product_image }}" alt="{{ item.product_name }}" class="lazy flex-none w-24 h-20 border border-gray-200 bg-gray-100 rounded-md object-center object-cover">
+								</a>
+							</div>
+							<div class="col-9">
+								<div class="cardHeader" style="">
+									<p>
+										{{ item.product_name }}</p>
+									{# <i class="fa-solid fa-circle-xmark"></i> #}
+									<salla-button type="button" shape="icon" size="small" color="danger" class="btn--delete" onclick="salla.cart.deleteItem({{ item.id }}).then(() => document.querySelector('#item-{{ item.id }}').remove())">
+										<i class="sicon-cancel"></i>
+									</salla-button>
+								</div>
+								<div class="cardFooter row" style="">
+									<p>{{ item.product_price|money }}</p>
+									<div class="col mr-3 ml-2">
+										<salla-quantity-input cart-item-id="{{ item.id }}" max="{{ product.max_quantity }}" class="transtion transition-color duration-300" value="{{ item.quantity }}" name="quantity"></salla-quantity-input>
+
+									</div>
+
+								</div>
+							</div>
+						</div>
+					</div>
+				{% endfor %}
+
+				{% hook 'cart:items.end' %}
+				<div class="row cartFooter ">
+					{% hook 'cart:submit.start' %}
+					<salla-button onclick="salla.cart.submit()" loader-position="center" width="">
+						{{ trans('pages.cart.complete_order') }}
+					</salla-button>
+					{% hook 'cart:submit.end' %}
+					<div class="promoCode row mr-5">
+						<input class="form-control col " placeholder="برومو كود ">
+						<i class="fa-solid fa-check" style="color: #99ba00;"></i>
+					</div>
+
+					<div class="col" style="text-align: center;">
+						<p class="discountHeader">الخصم</p>
+						<p class="discountValue">{{ cart.real_discount|money }}</p>
+					</div>
+					<p class="col summation">المجموع</p>
+					<p class="col total">{{ cart.total|money }}</p>
+				</div>
+				<div class=" cartFooterResponsive ">
+					<div class="row promo_discount">
+						<div class="promoCode  ml-3 mr-3">
+							<input class="form-control col " placeholder="برومو كود ">
+							<i class="fa-solid fa-check" style="color: #99ba00;"></i>
+						</div>
+						<div class="col" style="text-align: center;">
+							<p class="discountHeader">الخصم</p>
+							<p class="discountValue">{{ cart.real_discount|money }}</p>
+						</div>
+					</div>
+					<div class="footerResponsive container">
+						<div class="row" style="justify-content:space-between ;padding:10px">
+							<p style="font-size:14px;">المجموع</p>
+							<p style="font-size:26px; font-weight:bold">{{ cart.total|money }}</p>
+						</div>
+						{% hook 'cart:submit.start' %}
+						<salla-button onclick="salla.cart.submit()" loader-position="center" width="">
+							{{ trans('pages.cart.complete_order') }}
+						</salla-button>
+						{% hook 'cart:submit.end' %}
+					</div>
+				</div>
+			</div>
+
+			{# {% hook 'cart:summary.start' %} #}
+
+			<!-- sidebar -->
+
+		</div>
+	</div>
+{% endblock %}
+
+{% block scripts %}
+	<script defer src="{{ 'checkout.js' | asset }}"></script>
+{% endblock %}
